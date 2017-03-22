@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Balls game</title>
+        <meta name="description" content="Lesson 12 - Interaction">
+        <meta name="viewport" content="width=device-width">
+        <style>
+            html, body{
+                height: 100%;
+            }
+            body{
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 1em;
+                padding: 0 15px;
+                
+                color: #423A33;
+				/* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#1e5799+0,2989d8+50,207cca+51,7db9e8+100;Blue+Gloss+Default */
+				background: #1e5799; /* Old browsers */
+				background: -moz-linear-gradient(top, #1e5799 0%, #2989d8 50%, #207cca 51%, #7db9e8 100%); /* FF3.6-15 */
+				background: -webkit-linear-gradient(top, #1e5799 0%,#2989d8 50%,#207cca 51%,#7db9e8 100%); /* Chrome10-25,Safari5.1-6 */
+				background: linear-gradient(to bottom, #1e5799 0%,#2989d8 50%,#207cca 51%,#7db9e8 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+				filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e5799', endColorstr='#7db9e8',GradientType=0 ); /* IE6-9 */
+							}
+            canvas{
+                position: absolute;
+                border: dotted 1px #423A33;
+                background-color: #FFFFFF;
+                cursor: pointer;
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+        </style>
+
+    </head>
+    <body onload="APP.init()">
+
+        <h3>Balls game</h3>
+        <canvas id="canvas" width="900" height="600" unselectable="on">
+            <p>Sorry, but your browser doesn't support the canvas element</p>
+        </canvas>
+
+        <script type="text/javascript">
+            APP = {};
+			
+			function getRandomInt(min, max) {
+               return Math.floor(Math.random() * (max - min + 1)) + min;
+            };
+
+            APP.init = function(){
+                var self = this;
+
+                this.canvas = document.getElementById('canvas');
+                this.ctx = canvas.getContext('2d');
+                this.width = canvas.width ;
+                this.height = canvas.height;
+                this.shapeList = [];
+				
+				this.moveContainer = {
+				   top: 0,
+				   left: self.width / 2,
+				   right: self.width,
+				   bottom: self.height
+				}
+
+                this.moveHandler = null;
+                this.upHandler = null;
+
+                this.generateRandomCircles();
+                this.setupEvents();
+                //this.render();
+				this.animate();
+            }
+
+            APP.generateRandomCircles = function() {
+                for (var i = 0; i < 20; i++) {
+                    var randX = Math.floor(Math.random()*this.width / 2);
+                    var randY = Math.floor(Math.random()*this.height);
+                    var randSize = Math.floor(Math.random()*60) + 20;
+
+                    var Circle = new APP.Circle(randX, randY, randSize, this.ctx);
+                    this.shapeList.push(Circle);
+                }
+            }
+
+            APP.setupEvents = function() {
+                var self = this;
+                this.canvas.addEventListener('mousedown', function (e) {
+                    self.startDrag(e);              
+                }, false);
+            }
+
+            APP.startDrag = function(e) {
+                var self = this;
+                var shapes = self.getShapesAtXY(e.offsetX, e.offsetY);
+                if (shapes.length) {
+                    var selectedShape = shapes[shapes.length-1];
+                    selectedShape.selected = true;
+					selectedShape.isMoving = false;
+                    this.moveHandler = function (e) {
+                        self.dragShape(selectedShape, e.offsetX, e.offsetY);
+                    };
+                    this.upHandler = function (e) {
+                        self.stopDrag(selectedShape);
+                    };
+                    this.canvas.addEventListener('mousemove', this.moveHandler, false);
+                    this.canvas.addEventListener('mouseup', this.upHandler, false);
+                }
+                this.render();
+            }
+
+            APP.dragShape = function(shape, x, y) {
+                shape.x = x - shape.size/2;
+                shape.y = y - shape.size/2;
+                this.render();
+            }
+
+            APP.stopDrag = function(shape) {
+			    if (shape.isInsideMoveContainer()) {
+				   shape.isMoving = true;
+				} else {
+				   shape.isMoving = false;
+				}
+                shape.selected = false;
+                this.canvas.removeEventListener('mousemove', this.moveHandler, false);
+                this.canvas.removeEventListener('mouseup', this.upHandler, false);
+                this.render();
+            }
+
+            APP.getShapesAtXY = function(x, y) {
+                var validShapes = [];
+
+                for(index in this.shapeList){
+                    var shape = this.shapeList[index];
+                    var startX = shape.x;
+                    var endX = shape.x + shape.size;
+                    var startY = shape.y;
+                    var endY = shape.y + shape.size;
+
+                    if (x >= startX && x <= endX && y >= startY && y <= endY) {
+                        validShapes.push(shape);
+                    }
+                }
+                return validShapes;
+            }
+
+            APP.render = function(){
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                for(index in this.shapeList){
+                    this.shapeList[index].render();
+					
+                }
+				//draw divider line
+				
+				this.ctx.beginPath();
+                this.ctx.moveTo(this.width / 2, 0);
+                this.ctx.lineTo(this.width / 2, this.height);
+                this.ctx.stroke();
+            }
+			
+			APP.animate = function(){
+                var self = this;
+                this.render();
+                this.animId = requestAnimationFrame(function(){
+                    self.animate();
+                });
+            }
+
+            APP.Circle = function(x, y, size, ctx){
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.ctx = ctx;
+				this.speedX = getRandomInt(-4, 4);
+				this.speedY = getRandomInt(-4, 4);
+                this.color = '#'+Math.floor(
+                    Math.random()*16777215
+                ).toString(16);
+                this.selected = false;
+            }
+
+            APP.Circle.prototype.render = function(){
+                this.ctx.beginPath();
+
+				this.radius = this.size / 2;
+				this.ctx.arc(
+				   this.x + this.radius, this.y + this.radius, this.radius, 0, 2*Math.PI
+				);
+                this.ctx.closePath();
+                if (this.selected) {
+                    this.ctx.strokeStyle="#FF0000";
+                    this.ctx.lineWidth = 4;
+                    this.ctx.stroke();
+                }
+                this.ctx.fillStyle = this.color;
+                this.ctx.fill();
+				
+				if (this.isMoving) this.animate();
+            }
+
+            APP.Circle.prototype.move = function(newX, newY){
+                this.x = newX;
+                this.y = newY;
+            }
+			
+			APP.Circle.prototype.checkCollisions = function() {
+			    var container = APP.moveContainer;
+			    this.right = this.x + this.size;
+				this.bottom = this.y + this.size;
+				if (this.right > container.right || this.x < container.left) {
+                this.speedX = -this.speedX;
+                }
+            
+                if (this.y < container.top || this.bottom > container.bottom ) {
+                   this.speedY = -this.speedY;
+                }
+			}
+			
+			APP.Circle.prototype.isInsideMoveContainer = function() {
+			   var container = APP.moveContainer;
+			   
+			   return this.x > container.left;
+			}
+			
+			APP.Circle.prototype.animate = function(){
+			    this.checkCollisions();
+                this.move(this.x + this.speedX, this.y + this.speedY);
+                //this.render();
+            }
+
+        </script>
+    </body>
+</html>
